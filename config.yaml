@@ -1,0 +1,104 @@
+# Configuration file for Windows EC2 Terraform deployment
+aws_region: us-east-1
+
+# Optional VPC ID (if null, AWS uses the default VPC)
+vpc_id: null
+
+# Subnet Pools:
+# Provide public and/or private subnets for your VPC.
+# If left empty ([]), Terraform automatically discovers subnets from your VPC.
+public_subnet_ids: []
+private_subnet_ids: []
+
+# Security Groups:
+# Attach existing security groups globally, or set create_security_group: true
+# to automatically create a security group with configurable ingress rules.
+security_group_ids: []
+create_security_group: true
+
+# Ingress rules for the auto-created security group (allow RDP from anywhere for testing)
+security_group_ingress_rules:
+  - from_port: 3389
+    to_port: 3389
+    protocol: tcp
+    cidr_blocks: ["0.0.0.0/0"]
+    description: "RDP from anywhere"
+  - from_port: 5985
+    to_port: 5986
+    protocol: tcp
+    cidr_blocks: ["0.0.0.0/0"]
+    description: "WinRM HTTP/HTTPS"
+
+# Default instance settings (applied across instances unless overridden per instance)
+instance_type: t3.micro
+windows_ami_name_pattern: "Windows_Server-2022-English-Full-Base*"
+# windows_ami_id: "ami-0123456789abcdef0" # Optional: specify direct AMI ID
+
+# EC2 Key Pair: set to null to auto-generate a new 4096-bit RSA key pair saved to windows_key.pem
+key_name: null
+create_key_pair: true
+
+# Default IAM Instance Profile (optional, set to null if none)
+iam_instance_profile: null
+
+# Default User Data script
+user_data_file: "scripts/user_data.ps1"
+
+# Default Root Volume configuration (minimum for Windows Server is 30 GiB)
+root_volume:
+  size: 30
+  type: gp3
+  iops: 3000
+  throughput: 125
+  encrypted: true
+  kms_key_id: null
+
+# Global tags applied to all resources
+tags:
+  Environment: Testing
+  Project: Windows-Testing
+  ManagedBy: Terraform
+
+# ==============================================================================
+# N Instances Definition
+# Define any number of Windows EC2 instances below.
+# Each entry supports full customization:
+#   - name: Unique identifier for the instance
+#   - instance_type: Override instance size/type (e.g. t3.micro, t3.small)
+#   - subnet_type: "public" or "private" (or use public: true/false, or explicit subnet_id)
+#   - associate_public_ip: true/false (defaults to true for public subnet)
+#   - security_group_ids: list of instance-specific SGs (merged with global SGs)
+#   - override_security_groups: true to ignore global SGs and use only instance SGs
+#   - root_volume: per-instance override for root disk (size, type, iops, throughput, encrypted)
+#   - extra_disks: per-instance list of secondary EBS volumes (size, type, iops, throughput, encrypted, device_name)
+#   - key_name: override key pair per instance
+#   - iam_instance_profile: override IAM profile per instance
+#   - user_data_file / user_data: override bootstrap script
+#   - tags: per-instance tags (merged with global tags)
+# ==============================================================================
+instances:
+  # Instance 1: Small test VM with 1 extra small disk
+  - name: win-test-01
+    subnet_type: public
+    associate_public_ip: true
+    instance_type: t3.micro
+    root_volume:
+      size: 30
+      type: gp3
+    extra_disks:
+      - size: 10
+        type: gp3
+        device_name: /dev/sdf
+    tags:
+      Role: test-server-1
+
+  # Instance 2: Small test VM with NO extra disk
+  - name: win-test-02
+    subnet_type: public
+    associate_public_ip: true
+    instance_type: t3.micro
+    root_volume:
+      size: 30
+      type: gp3
+    tags:
+      Role: test-server-2
